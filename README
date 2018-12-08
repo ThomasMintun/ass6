@@ -9,4 +9,4 @@ The program will write to and create the file log.txt It can take one
 argument that is optional. This argument limits the amount of concurrent processes.
 The max and default is 18.
 
-The program will terminate after two real life seconds or after spawing 100 processes.
+The program is running differently on Delmar than on my machine. 

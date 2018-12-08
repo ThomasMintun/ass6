@@ -8,8 +8,8 @@ int main(int argc, char* argv[]) {
     char *p;
     int pageTableID = strtol(argv[1], &p, 10);
 
-    sharedMemoryConfig(); //set up shared memory
-    messageQueueConfig(); //set up message queues
+    sharedMemoryConfig();//set up shared memory
+    messageQueueConfig();//set up message queues
     getUserVariables(pageTableID);
     writeMessageQ();
 

@@ -20,10 +20,6 @@
 #define MAX_PROCS 18
 #define SHMKEY 696969
 
-// #####
-// ##### STRUCTURES #####
-// #####
-
 // struct for time
 typedef struct {
     unsigned int seconds;
@@ -32,20 +28,20 @@ typedef struct {
 
 //frame table
 typedef struct {
-    int pageTablePages[256];
+    int frames[256];
     int PIDS[256];
-    int referenceFlag[156];
-    int dirtyBit[156];
+    int referenceFlag[256];
+    char dirtyBit[256];
 } frameTable_t;
 
 //page table
 typedef struct {
-    int frameTableFrames[32];
+    int pages[32];
 } pageTable_t;
 
 //for shared memory
 typedef struct {
-    int sharedPIDHolder[18];         // for checking program termination
+    int sharedPIDHolder[18];//for checking program termination
     int checkProcNum[18];
     int processAddressCalled[18];
     int processReadOrWrite[18];
@@ -60,6 +56,7 @@ struct mesg_buffer {//message queue
 //vars...
 int prMax = 18; //max procs allowed
 int PID;
+
 frameTable_t frameTable;//define frame table
 pageTable_t pageTable[MAX_PROCS];//define array of page tables
 systemClock_t cLock;

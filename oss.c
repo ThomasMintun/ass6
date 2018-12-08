@@ -7,18 +7,22 @@ void cleanup();//deletes shared memory and message queue
 void createProcess();//generate forks
 void runCountCheckForTermination();//after all processes run 1000 times this will terminate the program
 void memManagement();
-void printResults();//print the results
+void checkPageTable();
+void searchFrameTable(int pageTable, int processNumber);
+void printResults(int option, int processNumber, int optionTwo);//print the results
+//void initializeDirtyBits();
 
 int main(int argc, char *argv[]) {
     int opt;
         while((opt = getopt (argc, argv, "h")) != -1)
                 switch (opt){
                         case 'h':
-                                printf("Program spawns user children, uses some shared memory, and message queues.\n");
-                                printf("Program will write to and create file log.txt \n");
-                                printf("Program can take one optional argument that limits amount of concurrent processes. \n");
-                                return 0;
-                                break;}
+                            printf("Program spawns user children, uses some shared memory, and message queues.\n");
+                            printf("Program will write to and create file log.txt \n");
+                            printf("Program can take one optional argument that limits amount of concurrent processes. \n");
+                            return 0;
+                            break;
+                }
 
     //handle arguments
     if(argc > 1){
@@ -29,19 +33,11 @@ int main(int argc, char *argv[]) {
     messageQueueConfig();//set up message queue
     signal(SIGINT, sigint);//for ctrl-c termination
     signal(SIGSEGV, sigint);//for seg faults
-
     initRandomForkTimes();//generate number between 100-500 for random times to fork off processes
+    //initializeDirtyBits();
 
     while(procsRunning == 0){//main loop
-        //fork processes if time is reached and
-        //pidHolder is not all 1's
-
         createProcess();
-
-        //check if any of the max run counts have been met
-        //if so place a 1 in the pidHolder position
-        //runCountCheckForTermination();
-
         //sleep(1);
         checkMsgQ();
         memManagement();
@@ -58,9 +54,9 @@ int main(int argc, char *argv[]) {
 //test outputs
 void testOutputs(){//comment this p
     //##### OUTPUTS FOR CHECKING #####
-    int xxx;
-    for(xxx = 0; xxx < 18; xxx++){
-        printf("%d ", mainPIDHolder[xxx]);
+    int counter;
+    for(counter = 0; counter < 18; counter++){
+        printf("%d ", mainPIDHolder[counter]);
     }
 
     printf("\n ref: %d \n",sharedShmptr -> checkProcNum[0]);
@@ -106,10 +102,10 @@ void checkMsgQ(){
     char *p;//using this pointer for strtol
     PID = strtol(message.mesg_text, &p, 10);//string to long
     printf("\n PID FROM MSGQ: %d\n", PID);
-    int xxx;
-    for(xxx = 0; xxx < 18; xxx++){
-        if(mainPIDHolder[xxx] == PID) {
-            mainPIDHolder[xxx] = 0;
+    int counter;
+    for(counter = 0; counter < 18; counter++){
+        if(mainPIDHolder[counter] == PID) {
+            mainPIDHolder[counter] = 0;
         }
     }
     strcpy(message.mesg_text, "0");
@@ -120,11 +116,11 @@ void cleanup(){
         perror("msgctl");
     }
     // kill open forks
-    int xxx;
-    for(xxx = 0; xxx < 18; xxx++){
-        if(mainPIDHolder[xxx] != 0){
+    int counter;
+    for(counter = 0; counter < 18; counter++){
+        if(mainPIDHolder[counter] != 0){
             signal(SIGQUIT, SIG_IGN);
-            kill(mainPIDHolder[xxx], SIGQUIT);
+            kill(mainPIDHolder[counter], SIGQUIT);
         }
     }
     //clean shared memory
@@ -135,19 +131,19 @@ void cleanup(){
 }
 
 void createProcess(){
-    int xxx;
+    int counter;
     //fork into the pidholder postions with arr[pos] = 0;
-    for(xxx = 0; xxx < 18; xxx++){
-        if(mainPIDHolder[xxx] == 0){
-            int positionPID = xxx;
+    for(counter = 0; counter < 18; counter++){
+        if(mainPIDHolder[counter] == 0){
+            int positionPID = counter;
             char stashbox[10];
             sprintf(stashbox, "%d", positionPID);
             // creates process in the pidHolder at
-            if ((mainPIDHolder[xxx] = fork()) == 0) {
+            if ((mainPIDHolder[counter] = fork()) == 0) {
                 // argv{0] is page table number
                 execl("./user", "user", stashbox, NULL);//sends page table number to the stashbox
             }
-            printf("\nfork made with PID: %d\n", mainPIDHolder[xxx]);
+            printf("\nfork made with PID: %d\n", mainPIDHolder[counter]);
             break;
         }
     }
@@ -156,16 +152,16 @@ void createProcess(){
 
 void runCountCheckForTermination(){
     //check run counts
-    int xxx;
-    for(xxx = 0; xxx < 18; xxx++){
-        if(sharedShmptr -> processCallCount[xxx] >= 10)
-            mainPIDHolder[xxx] = 1;//writes 1 into pidHolder if that pidHolder has ran 1000 processes
+    int counter;
+    for(counter = 0; counter < 18; counter++){
+        if(sharedShmptr -> processCallCount[counter] >= 10)
+            mainPIDHolder[counter] = 1;//writes 1 into pidHolder if that pidHolder has ran 1000 processes
     }
 
     int sum = 0;
     //terminate if all 1's
-    for(xxx = 0; xxx < 18; xxx++){//count up the 1s in pidHolder, if 1s in pidHolder = 18 then terminate program
-        if(mainPIDHolder[xxx] == 1)
+    for(counter = 0; counter < 18; counter++){//count up the 1s in pidHolder, if 1s in pidHolder = 18 then terminate program
+        if(mainPIDHolder[counter] == 1)
             sum++;
     }
 
@@ -175,27 +171,82 @@ void runCountCheckForTermination(){
 }
 
 void memManagement(){//increments the clock 
-    int xxx;
-    for (xxx = 0; xxx < 18; xxx++){
-        if (mainPIDHolder[xxx] == PID){
-            xxx = PID;//xxx is powerful and will be used
-            break;
+    int counter;
+    //check page table
+    
+    for (counter = 0; counter < 18; counter++){
+        if (mainPIDHolder[counter] == PID){
+            printf("%d ", mainPIDHolder[counter]);
+            if(sharedShmptr->processReadOrWrite[counter] == 0){
+            cLock.milliseconds += 10;
+            printResults(1, counter, 1);
+            }
+            else if (sharedShmptr->processReadOrWrite[counter] == 1){
+                cLock.milliseconds += 51;
+                printResults(2, counter, 2);
+            }
+        //check page table at position counter        
+        break;
         }
     }
+}
 
-    if(sharedShmptr->processReadOrWrite[xxx] == 0){
-        cLock.milliseconds += 10;
-        printResults();
+void checkPageTable(int processNumber){
+    //find page
+    int pageNumber;
+    pageNumber = sharedShmptr->processAddressCalled[processNumber] / 1000;
+
+    if(pageTable->pages[pageNumber] == 0){
+        printResults(3, processNumber, pageNumber);
+        searchFrameTable(pageNumber, processNumber);
     }
-    else if (sharedShmptr->processReadOrWrite[xxx] == 1){
-        cLock.milliseconds += 50;
-        printResults();
+    //else if (pageTable[processs])
+}
+
+void searchFrameTable(int pageNumber, int processNumber){
+    int counter;
+    for (counter = 0; counter < 256; counter++){
+        if(frameTable.frames[counter] == 0){
+            frameTable.frames[counter] = pageNumber;
+            printResults(4, processNumber, pageNumber);
+
+            if (sharedShmptr->processReadOrWrite[processNumber] == 1)
+                frameTable.dirtyBit[counter] = 'd';
+                printResults(5, processNumber, pageNumber);
+        }
     }
 }
 
 // if process completes, write data to log
-void printResults(){
+void printResults(int option, int processNumber, int optionTwo){
     FILE *fp = fopen("log.txt", "a+");
-    fprintf(fp, "Time is: %d\n", cLock.milliseconds);
+
+    switch(option){
+        case 1:
+            fprintf(fp, "Process:%d requesting read of address %d at time %d \n", processNumber, sharedShmptr->processAddressCalled[processNumber], cLock.milliseconds);
+            break;
+        case 2:
+            fprintf(fp, "Process:%d requesting write of address %d at time %d \n", processNumber, sharedShmptr->processAddressCalled[processNumber], cLock.milliseconds);
+            break;
+        case 3:
+            fprintf(fp, "Address:%d is not in a fram resulting in a page fault. \n", sharedShmptr->processAddressCalled[processNumber]);
+            break;
+        case 4:
+            fprintf(fp, "Address:%d \n", sharedShmptr->processAddressCalled[processNumber]);
+            break;
+        case 5:
+            fprintf(fp, "Dirty bit of frame %d set. Adding additional time to clock. \n", optionTwo);
+            break;
+        case 6:
+            fprintf(fp, "Dirty bit of frame %d set. Adding additional time to clock. \n", optionTwo);
+            break;
+    }
     fclose(fp);
 }
+
+// void initializeDirtyBits(){
+//     int counter;
+//     for (counter = 0; counter < 256; counter++){
+//         frameTable = 4;
+//     }
+// }
