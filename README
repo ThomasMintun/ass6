@@ -1,2 +1,12 @@
+README for ass6 for Professor Hauschild's Operating Systems class.
 
-##### Connor Baniak #####
+Source Control:
+	https://github.com/ThomasMintun/ass6
+
+To run this program simply run ./oss after making the executables. 
+
+The program will write to and create the file log.txt It can take one 
+argument that is optional. This argument limits the amount of concurrent processes.
+The max and default is 18.
+
+The program will terminate after two real life seconds or after spawing 100 processes.
